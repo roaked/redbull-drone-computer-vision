@@ -41,11 +41,11 @@ Ke_z = observersDiscrete(Gzd_A_obs,Gzd_C_obs);
 
 %Weighting Matrices: (change these values) - ch
 
-Q_z = [20 0 0;
-       0  20 0
-       0 0 20];
+Q_z = [ 0 0 0;
+       0  3000 0
+       0 0 0];
 
-R_z = 500;
+R_z = 100;
 
 %LQR Gains:
 
@@ -94,10 +94,10 @@ Ke_yaw = observersDiscrete(Gyawd_A_obs,Gyawd_C_obs);
 
 %Weighting Matrices:
 
-Q_Yaw = [25 0
-         0 25];
+Q_Yaw = [1 0
+         0 1];
 
-R_Yaw = 250;
+R_Yaw = 10;
 
 %LQR Gains:
 
@@ -147,13 +147,13 @@ Ke_X = observersDiscrete(Gxd_A_obs,Gxd_C_obs);
 
 %Weighting Matrices:
 
-Q_X=[3 0 0 0 0;
-     0 3 0 0 0; 
-     0 0 5 0 0;
-     0 0 0 5 0
-     0 0 0 0 3];
+Q_X=[1 0 0 0 0;
+     0 1 0 0 0; 
+     0 0 1 0 0;
+     0 0 0 1 0
+     0 0 0 0 1];
 
-R_X = 250;
+R_X = 700;
 
 %LQR Gains:
 
@@ -207,11 +207,11 @@ Ke_Y = observersDiscrete(Gyd_A_obs,Gyd_C_obs);
 
 Q_Y=[1 0 0 0 0;
     0 1  0 0 0; 
-    0 0 1 0 0;
-    0 0 0 1 0
-    0 0 0 0 1];
+    0 0 2 0 0;
+    0 0 0 2 0
+    0 0 0 0 2];
 
-R_Y = 220;
+R_Y = 1500;
 
 %LQR Gains:
 
@@ -233,9 +233,6 @@ ssPitch_discrete=c2d(ssPitch,t_samp);
 ssPitch2U_discrete=c2d(ssPitch2U,t_samp);
 ssYaw_discrete=c2d(ssYaw,t_samp);
 ssH_discrete=c2d(ssH,t_samp);
-
-
-
 
 
 
