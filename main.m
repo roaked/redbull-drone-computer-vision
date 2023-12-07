@@ -1,174 +1,241 @@
+%This version has the measured covariances
+%% Variables:
+t_samp=0.065; %Discretization
+delay=0.26;   %Delay
 
-%% Chose an image
+load ssH.mat;
+load ssYaw.mat;
+load tf.mat;
 
-%training set
+%% Height Subsystem
 
-%img = imread('IMG_9766.jpg');
-img = imread('IMG_9510.jpg');
-%img = imread('IMG_7125.jpg');
-%img = imread('IMG_7071.jpg');
+%Continuous-Time State-Space Matrices:
+
+Gz_A = ssH.A;
+Gz_B = ssH.B;
+Gz_C = ssH.C;
+Gz_D = ssH.D;
+
+%Discrete-Time and Continuous-Time Transfer Functions:
+
+[num,den]=ss2tf(Gz_A,Gz_B,Gz_C,Gz_D);
+
+Gzc=tf(num,den);
+
+Gzd = c2d(Gzc,t_samp,'ZOH');
+
+numH_discrete = Gzd.Numerator{:,:};
+denH_discrete = Gzd.Denominator{:,:};
+
+%Continuous-Time Observable Canonical Form:
+
+[Gzc_A_obs,Gzc_B_obs,Gzc_C_obs] = observable(num,den,2); 
+
+%Discrete-Time Observable Canonical Form:
+
+[Gzd_A_obs,Gzd_B_obs,Gzd_C_obs] = observable(Gzd.numerator{:,:},Gzd.denominator{:,:},2);
+
+%Discrete-Time Observer Gain Matrix - Deadbeat Response:
+
+Ke_z = observersDiscrete(Gzd_A_obs,Gzd_C_obs);
+
+%Weighting Matrices: (change these values) - ch
+
+Q_z = [20 0 0;
+       0  20 0
+       0 0 20];
+
+R_z = 500;
+
+%LQR Gains:
+
+[K_Z, K0_Z, P_Z, cloop_poles_Z] = gainLQR(Gzd_A_obs,Gzd_B_obs,Gzd_C_obs,Q_z,R_z,t_samp);
+
+%Plot LQR
+
+%Kalman Filter:
+ 
+QE_Z=eye(2)*10^(-3);
+RE_Z=0.002762;
+ 
+KGe_Z = dlqe(Gzd_A_obs,QE_Z,Gzd_C_obs,QE_Z,RE_Z);
+
+%% Heading Subsystem
+
+%Continuous-Time State-Space Matrices:
+
+Gyaw_A = ssYaw.A;
+Gyaw_B = ssYaw.B;
+Gyaw_C = ssYaw.C;
+Gyaw_D = ssYaw.D;
+
+%Discrete-Time and Continuous-Time Transfer Functions;
+
+[num,den]=ss2tf(Gyaw_A,Gyaw_B,Gyaw_C,Gyaw_D);
+
+Gyawc=tf(num,den);
+
+Gyawd = c2d(Gyawc,t_samp,'ZOH');
+
+numYaw_discrete = Gyawd.Numerator{:,:};
+denYaw_discrete = Gyawd.Denominator{:,:};
+
+%Continuous-Time Observable Canonical Form:
+
+[Gyawc_A_obs,Gyawc_B_obs,Gyawc_C_obs] = observable(num,den,1); 
+
+%Discrete-Time Observable Canonical Form:
+
+[Gyawd_A_obs,Gyawd_B_obs,Gyawd_C_obs] = observable(Gyawd.numerator{:,:},Gyawd.denominator{:,:},1);
+
+%Observer Discrete-Time Gain Matrix - Deadbeat Response:
+
+Ke_yaw = observersDiscrete(Gyawd_A_obs,Gyawd_C_obs);
+
+%Weighting Matrices:
+
+Q_Yaw = [25 0
+         0 25];
+
+R_Yaw = 250;
+
+%LQR Gains:
+
+[K_yaw, K0_yaw, P_yaw, cloop_poles_yaw] = gainLQR(Gyawd_A_obs,Gyawd_B_obs,Gyawd_C_obs,Q_Yaw,R_Yaw,t_samp);
+
+%Use PlotLQR?
+
+%Kalman Filter:
+ 
+QE_yaw=eye(1)*10^(-4);
+RE_yaw=0.000061;
+ 
+KGe_yaw = dlqe(Gyawd_A_obs,QE_yaw,Gyawd_C_obs,QE_yaw,RE_yaw);
+
+%% Longitudinal Position Subsystem
+
+%Continuous-Time State-Space Matrices:
+
+[Gxc_A,Gxc_B,Gxc_C,Gxc_D] = tf2ss(tfX.Numerator{:,:},tfX.Denominator{:,:});
+
+[num,den]=ss2tf(Gxc_A,Gxc_B,Gxc_C,Gxc_D);
+
+Gxc=tf(num,den);
+
+%Discrete-Time Transfer Function:
+
+Gxd = c2d(Gxc,t_samp,'ZOH');
+
+numX_discrete = Gxd.Numerator{:,:};
+denX_discrete = Gxd.Denominator{:,:};
+
+%Continuous-Time Observable Canonical Form:
+
+[Gxc_A_obs,Gxc_B_obs,Gxc_C_obs] = observable(Gxc.numerator{:,:},Gxc.denominator{:,:},4); 
+
+%Discrete-Time Observable Canonical Form:
+
+[Gxd_A_obs,Gxd_B_obs,Gxd_C_obs] = observable(Gxd.numerator{:,:},Gxd.denominator{:,:},4);
+
+%Observer Discrete-Time Gain Matrix - Deadbeat Response:
+
+Ke_X = observersDiscrete(Gxd_A_obs,Gxd_C_obs);
+
+%Observer Continuous-Time Gain Matrix - Deadbeat Response:
+
+%Kec_X = observersContinuous(Gxc_A_obs,Gxc_C_obs);
+
+%Weighting Matrices:
+
+Q_X=[3 0 0 0 0;
+     0 3 0 0 0; 
+     0 0 5 0 0;
+     0 0 0 5 0
+     0 0 0 0 3];
+
+R_X = 250;
+
+%LQR Gains:
+
+[K_X, K0_X, P_X, cloop_poles_X] = gainLQR(Gxd_A_obs,Gxd_B_obs,Gxd_C_obs,Q_X,R_X,t_samp);
+
+%Plot LQR:
+
+%[Gx_A_lqr, Gx_B_lqr, Gx_C_lqr, D] = plotLQR(Gxc_A_obs,Gxc_B_obs,Gxc_C_obs, K_X);
+
+%Pole placement: (?)
+
+%[A_acker, B_acker, C_acker, D_acker, Kx_acker] = poleplace(Gxc.numerator{:,:},Gxc.denominator{:,:});
+
+%Kalman Filter 
+
+QE_X=eye(4)*10^(-4);
+RE_X=0.001166;
+ 
+KGe_X = dlqe(Gxd_A_obs,QE_X,Gxd_C_obs,QE_X,RE_X);
+
+%% Lateral Position Subsystem
+
+%Continuous-Time State-Space Matrices:
+
+[Gyc_A,Gyc_B,Gyc_C,Gyc_D] = tf2ss(tfY.Numerator{:,:},tfY.Denominator{:,:});
+
+[num,den]=ss2tf(Gyc_A,Gyc_B,Gyc_C,Gyc_D);
+
+Gyc=tf(num,den);
+
+%Discrete-Time Transfer Function:
+
+Gyd = c2d(Gyc,t_samp,'ZOH');
+
+numY_discrete = Gyd.numerator{:,:};
+denY_discrete = Gyd.denominator{:,:};
+
+%Continuous-Time Observable Canonical Form:
+
+[Gyc_A_obs,Gyc_B_obs,Gyc_C_obs] = observable(Gyc.numerator{:,:},Gyc.denominator{:,:},4); 
+
+%Discrete-Time Observable Canonical Form:
+
+[Gyd_A_obs,Gyd_B_obs,Gyd_C_obs] = observable(Gyd.numerator{:,:},Gyd.denominator{:,:},4);
+
+%Discrete-Time Observer Gain Matrix:
+
+Ke_Y = observersDiscrete(Gyd_A_obs,Gyd_C_obs);
+
+%Weighting Matrices:
+
+Q_Y=[1 0 0 0 0;
+    0 1  0 0 0; 
+    0 0 1 0 0;
+    0 0 0 1 0
+    0 0 0 0 1];
+
+R_Y = 220;
+
+%LQR Gains:
+
+[K_Y, K0_Y, P_Y, cloop_poles_Y] = gainLQR(Gyd_A_obs,Gyd_B_obs,Gyd_C_obs,Q_Y,R_Y,t_samp);
 
 
-%other images
+%Kalman Filter:
+ 
+QE_Y=eye(4)*10^(-5);
+RE_Y=0.000961;
+ 
+KGe_Y = dlqe(Gyd_A_obs,QE_Y,Gyd_C_obs,QE_Y,RE_Y);
 
-%img = imread('IMG_4599.jpg');
-%img = imread('IMG_2074.jpg');
-%img = imread('IMG_1130.jpg');
-%img = imread('IMG_0345.jpg');
-%img = imread('IMG_0268.jpg');
-%img = imread('IMG_0208.jpg');
-%img = imread('IMG_9991.jpg');
-%img = imread('IMG_8509.jpg');
+%% Discrete SS for devkit:
 
-
-%% Colorspace Segmentation && Morphological Operations
-
-%close all
-
-[seg,BW] = Segmenter(img);
-
-figure (1)
-subplot(1,2,1)
-imshow(img)
-subplot(1,2,2)
-imshow(seg)
-
-
-%% BW Noise removal
-
-
-%close all
-
-
-se = strel('square',20);
-BW = imopen(BW,se);
-BW = imclose(BW,se); 
-figure (2)
-imshow(BW);
-WB = 1-BW;
+ssRoll_discrete=c2d(ssRoll,t_samp);
+ssRoll2V_discrete=c2d(ssRoll2V,t_samp);
+ssPitch_discrete=c2d(ssPitch,t_samp);
+ssPitch2U_discrete=c2d(ssPitch2U,t_samp);
+ssYaw_discrete=c2d(ssYaw,t_samp);
+ssH_discrete=c2d(ssH,t_samp);
 
 
 
-%% Edge detection
-
-%close all
-
-% BW1 = edge(BW,'sobel');
-% figure (3)
-% imshow(BW1)
-% 
-% BW2 = edge(BW,'log');
-% figure (4)
-% imshow(BW2)
-
-BWcanny = edge(BW,'canny');
-figure (3)
-imshow(BWcanny)
-
-imgHSVseg = rgb2hsv(seg);
-
-hueseg = imgHSVseg(:,:,1);
 
 
-BWImage = edge(hueseg,'canny',0.1,0.01);
-figure (4)
-imshow(BWImage)
-
-
-%Canny best results
-
-%% Gate Aligned & Detect Corners
-
-[C] = CornerDetec(BWcanny);
-
-%3. Plot the corners
-figure (5)
-imshow(img); hold on 
-plot(C([1:4 1],1),C([1:4 1],2),'r*','LineWidth',5,'MarkerSize',5);
-
-
-%% Centroid Detection
-
-stat = regionprops(BWcanny,'centroid');
-figure (6)
-imshow(img); hold on;
-plot(C([1:4 1],1),C([1:4 1],2),'g','LineWidth',5,'MarkerSize',5);
-plot(C([1:4 1],1),C([1:4 1],2),'r*','LineWidth',5,'MarkerSize',5);
-
-centroid_Number = 2;
-if size(struct2table(stat),1) == 1
-    centroid_Number = 1;
-else
-    holes = imfill(BW,'holes');
-    holes = 1-holes;
-    InnerWhite = WB - holes;
-    WBcanny = edge(InnerWhite,'canny');
-    [C2] = CornerDetec(WBcanny);
-    plot(C2([1:4 1],1),C2([1:4 1],2),'g','LineWidth',5,'MarkerSize',5);
-    plot(C2([1:4 1],1),C2([1:4 1],2),'r*','LineWidth',5,'MarkerSize',5);
-end
-
-plot(stat(centroid_Number).Centroid(1),stat(centroid_Number).Centroid(2),'yx'...
-    ,'MarkerSize',20,'LineWidth',5);
-
-
-%% Hough Transform
-
-%close all
-
-BWcanny = bwmorph(BWcanny,'bridge',100);
-
-[H, theta, rho] = hough(BWcanny);
-numpeaks = 200;
-peaks = houghpeaks(H,numpeaks,'threshold',20);
-lines = houghlines(BWcanny, theta, rho, peaks,'FillGap',20,'MinLength',0.01);
-
-%imshow(img), hold on
-max_len = 0;
-
-figure (7)
-subplot(1,2,1)
-imshow(BWcanny)
-hold on
-for k = 1:length(lines)
-   xy = [lines(k).point1; lines(k).point2];
-   plot(xy(:,1),xy(:,2),'LineWidth',2,'Color','red');
-end
-
-subplot(1,2,2)
-imshow(img)
-hold on
-for k = 1:length(lines)
-   xy = [lines(k).point1; lines(k).point2];
-   plot(xy(:,1),xy(:,2),'LineWidth',2,'Color','red');
-end
-title('Original image')
-
-
-
-%% Gate Image Enhancement
-
-segWB = img.*uint8(WB);
-rgbImage = segWB;
-% Extract the individual red, green, and blue color channels.
-redChannel = rgbImage(:, :, 1);
-greenChannel = rgbImage(:, :, 2);
-blueChannel = rgbImage(:, :, 3);
-% Find pixels that are pure black - black in all 3 channels.
-blackPixels = redChannel == 0 & greenChannel  == 0 & blueChannel  == 0;
-
-redChannel(blackPixels) = 255;
-greenChannel(blackPixels) = 0;
-blueChannel(blackPixels) = 255;
-% Recombine separate color channels into a single, true color RGB image.
-rgbImage = cat(3, redChannel, greenChannel, blueChannel);
-
-figure (8)
-imshow(rgbImage)
-hold on
-plot(C([1:4 1],1),C([1:4 1],2),'g','LineWidth',5,'MarkerSize',5);
-
-if size(struct2table(stat),1) == 2
-    plot(C2([1:4 1],1),C2([1:4 1],2),'g','LineWidth',5,'MarkerSize',5);
-end
 
